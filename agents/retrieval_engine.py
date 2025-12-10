@@ -4,7 +4,6 @@ import faiss
 import os
 from agents.sf_embeddings import SiliconFlowEmbeddings
 
-# 降维后的维度，可调节
 PCA_DIM = 128
 # INDEX_PATH = "cheatsheet.index"
 # TEXT_PATH = "cheatsheet_texts.json"
@@ -22,20 +21,17 @@ class RetrievalEngine:
         self.pool_text = []
         self.embedding_cache = {}
         self.index = None
-        self.pca_matrix = None   # PCA 降维矩阵
+        self.pca_matrix = None 
         self.INDEX_PATH = f"{self.prefix}_cheatsheet.index"
         self.TEXT_PATH = f"{self.prefix}_cheatsheet_texts.json"
         self.PCA_PATH = f"{self.prefix}_cheatsheet_pca.npy"
-        # 尝试直接加载保存的索引
         self._try_load_index()
 
-    # ------------------------------
-    #  PCA 工具
-    # ------------------------------
+
     def _fit_pca(self, matrix):
         """Fit PCA matrix using SVD"""
         U, S, Vt = np.linalg.svd(matrix - matrix.mean(0), full_matrices=False)
-        pca = Vt[:PCA_DIM]   # 选取前 PCA_DIM 主成分
+        pca = Vt[:PCA_DIM]  
         np.save(self.PCA_PATH, pca)
         return pca
 
@@ -44,9 +40,6 @@ class RetrievalEngine:
             return vec.astype("float32")
         return vec @ self.pca_matrix.T
 
-    # ------------------------------
-    # 保存 / 加载索引
-    # ------------------------------
     def _try_load_index(self):
         """Load FAISS index + text list + PCA if exists."""
         import json
@@ -81,9 +74,6 @@ class RetrievalEngine:
 
         print("[RetrievalEngine] Index saved to disk.")
 
-    # ------------------------------
-    # 获取 embedding（含缓存 + PCA）
-    # ------------------------------
     def _get_embedding(self, text):
         if text in self.embedding_cache:
             return self.embedding_cache[text]
@@ -97,9 +87,6 @@ class RetrievalEngine:
         self.embedding_cache[text] = emb
         return emb
 
-    # ------------------------------
-    # 构建索引（第一次构建）
-    # ------------------------------
     def _build_index(self):
         emb_matrix = np.array([self._get_embedding(t) for t in self.pool_text])
 
@@ -114,9 +101,6 @@ class RetrievalEngine:
 
         self._save_index()
 
-    # ------------------------------
-    # 添加新的记忆条目
-    # ------------------------------
     def add(self, text: str):
         if text in self.pool_text:
             return
@@ -126,9 +110,6 @@ class RetrievalEngine:
         # rebuild full index anytime new strategy added
         self._build_index()
 
-    # ------------------------------
-    # 搜索
-    # ------------------------------
     def search(self, query: str, top_k: int = 5):
         if self.index is None or len(self.pool_text) == 0:
             return []

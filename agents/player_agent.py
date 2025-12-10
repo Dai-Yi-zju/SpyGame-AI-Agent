@@ -14,9 +14,7 @@ from prompts.identity_reflection_prompts import get_identity_reflection_prompt, 
 
 
 class PlayerAgent:
-    """玩家智能体 - 不知道自己是平民还是卧底，需要通过描述推测"""
     def _normalize_player_id(self, key):
-        """把各种形式的玩家 ID（例如 'player_1' / '1'）转换为整数 1"""
         if isinstance(key, int):
             return key
         if isinstance(key, str):

@@ -1,10 +1,8 @@
 # data/word_pairs.py
-"""词汇对数据加载模块"""
 import json
 import os
 from typing import List, Dict, Literal
 
-# 默认词汇对（中文）
 DEFAULT_WORD_PAIRS = [
     {"civilian": "苹果", "undercover": "梨"},
     {"civilian": "牛奶", "undercover": "豆浆"},

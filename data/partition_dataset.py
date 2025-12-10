@@ -4,9 +4,6 @@ import requests
 import numpy as np
 from typing import List, Dict
 
-# =========================
-# 1️⃣ 你的 SiliconFlow Embedding 封装（与你提供的一致）
-# =========================
 
 class SiliconFlowEmbeddings:
     """
@@ -42,9 +39,6 @@ class SiliconFlowEmbeddings:
         return [np.array(e) for e in embeds]
 
 
-# =========================
-# 2️⃣ GPT 调用（基于 Chat Completions 接口）
-# =========================
 
 class SimpleGPTClient:
     def __init__(self, api_key: str, base_url: str, model: str):
@@ -80,9 +74,7 @@ Word: {word}
     return llm.invoke(prompt)
 
 
-# =========================
-# 3️⃣ 工具函数
-# =========================
+
 
 def cosine_similarity(a, b):
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
@@ -95,9 +87,6 @@ def load_keyword_pairs(path: str):
     return pairs
 
 
-# =========================
-# 4️⃣ 核心打分函数（600 组全部打分）
-# =========================
 
 def score_keyword_pairs_with_gpt_and_embedding(
     keyword_pairs: List[List[str]],
@@ -131,9 +120,6 @@ def score_keyword_pairs_with_gpt_and_embedding(
     return results
 
 
-# =========================
-# 5️⃣ 难度划分（hard / medium / easy 各 200）
-# =========================
 
 def split_difficulty_levels(scored_pairs: List[Dict]) -> Dict[str, List[Dict]]:
     scored_pairs = sorted(
@@ -153,9 +139,6 @@ def split_difficulty_levels(scored_pairs: List[Dict]) -> Dict[str, List[Dict]]:
     }
 
 
-# =========================
-# 6️⃣ 一键运行 Pipeline
-# =========================
 
 def build_difficulty_keyword_dataset(
     keyword_pair_path: str,
@@ -172,7 +155,6 @@ def build_difficulty_keyword_dataset(
         embed_model=embed_model
     )
 
-    # ✅ 新增：全量排序并保存（600条）
     save_full_sorted_results(scored, full_sorted_save_path)
 
     split = split_difficulty_levels(scored)
@@ -205,33 +187,26 @@ def save_full_sorted_results(scored_pairs, save_path="keyword_full_sorted_by_sim
     print(f"✅ Full sorted result saved to: {save_path}")
     return sorted_all
 
-# =========================
-# 7️⃣主函数入口
-# =========================
 
 if __name__ == "__main__":
 
-    # ✅ 你的 API Key 请放在系统环境变量中
-    GPT_KEY = "sk-5xFBXEPO4--OrbIPV3yU8A"
-    QWEN_KEY = "sk-amcjzxomyzuispivnvvtgszrnxijmxpkmewbvlviffgborlg"
+    GPT_KEY = "your api key"
+    QWEN_KEY = "your api key"
 
     assert GPT_KEY is not None, "❌ 请先在系统中设置环境变量 GPT_KEY"
     assert QWEN_KEY is not None, "❌ 请先在系统中设置环境变量 QWEN_KEY"
 
-    # ✅ 初始化 GPT（你 CMU 的 gateway）
     gpt_model = SimpleGPTClient(
         api_key=GPT_KEY,
         base_url="https://ai-gateway.andrew.cmu.edu/v1",
         model="gpt-4o-mini-2024-07-18"
     )
 
-    # ✅ 初始化 Embedding（SiliconFlow）
     embed_model = SiliconFlowEmbeddings(
         api_key=QWEN_KEY,
         model="BAAI/bge-m3"
     )
 
-    # ✅ 一键构建难度数据集
     build_difficulty_keyword_dataset(
         keyword_pair_path="key_word_pair.json",  
         gpt_model=gpt_model,

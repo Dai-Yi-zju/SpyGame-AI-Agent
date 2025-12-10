@@ -17,13 +17,8 @@ def cosine_sim(a, b):
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
 
 def compute_self_outlier_score(my_word, others_words, embed_model):
-    """
-    根据真实词语计算“离群度”：
-    - 越接近 1 → 越像那个不同的（越像卧底）
-    - 越接近 0 → 和大家很像（越像平民）
-    """
     texts = [my_word] + others_words
-    vecs = embed_model.embed(texts)   # 返回 np.array 列表
+    vecs = embed_model.embed(texts)  
 
     my_vec = vecs[0]
     other_vecs = vecs[1:]
@@ -49,10 +44,6 @@ def load_config(path):
 def append_jsonl(path, obj):
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps(obj, ensure_ascii=False) + "\n")
-
-# ===========================================
-# GAME LOOP
-# ===========================================
 
 def run_one_game(all_players,game_id,save_dir,enable_cheatsheet=False,embed_model=None):
 
@@ -81,9 +72,6 @@ def run_one_game(all_players,game_id,save_dir,enable_cheatsheet=False,embed_mode
 
         print(f"\n===== Round {round_num} =====")
 
-        # ---------------------------------------
-        # 1. HOST ANNOUNCES DESCRIPTION PHASE
-        # ---------------------------------------
         host_msg = f"This is the {round_num} round, please describe your word:"
         broadcast(
             msg={"round_num": round_num, "role": "host", "phase": "announce_description", "content": host_msg},
@@ -91,28 +79,22 @@ def run_one_game(all_players,game_id,save_dir,enable_cheatsheet=False,embed_mode
             game_log=game_log,
         )
 
-        # ---------------------------------------
-        # 2. DESCRIPTION + REFLECTION
-        # ---------------------------------------
         for now_player in alive_players:
 
-            # 2.1 Player speaks
             try:
                 description = now_player.ask(phase="description", round_num=round_num)
             except Exception as e:
                 print(f"[ERROR] Player {now_player.player_id} description failed: {e}")
-                description = "I cannot answer."   # fallback
+                description = "I cannot answer." 
 
             others = [p for p in alive_players if p.player_id != now_player.player_id]
 
-            # Broadcast description
             broadcast(
                 msg={"round_num": round_num, "role": now_player.player_id, "phase": "description", "content": description},
                 target=alive_players,
                 game_log=game_log,
             )
 
-            # 2.2 Parallel reflection by others
             alive_pid=[tmp.player_id for tmp in alive_players]
             
             outlier_scores = {}
@@ -141,14 +123,6 @@ def run_one_game(all_players,game_id,save_dir,enable_cheatsheet=False,embed_mode
                 for f in futures:
                     f.result()
 
-            # with ThreadPoolExecutor(max_workers=len(others)) as executor:
-            #     futures = [executor.submit(o.ask, phase="reflection", round_num=round_num, alive_players_id=alive_pid) for o in others]
-            #     for f in futures:
-            #         f.result()
-
-        # ---------------------------------------
-        # 3. HOST ANNOUNCES VOTING PHASE
-        # ---------------------------------------
         vote_msg = (
             f"This is the {round_num} round, now all the alive players have spoken. "
             "Please vote for the one you think is the spy:"
@@ -159,9 +133,6 @@ def run_one_game(all_players,game_id,save_dir,enable_cheatsheet=False,embed_mode
             game_log=game_log,
         )
 
-        # ---------------------------------------
-        # 4. PARALLEL VOTING
-        # ---------------------------------------
         votes = {}
         alive_pid=[tmp.player_id for tmp in alive_players]
 
@@ -170,8 +141,7 @@ def run_one_game(all_players,game_id,save_dir,enable_cheatsheet=False,embed_mode
                 return p.ask(phase="vote", round_num=round_num, alive_players_id=alive_pid)
             except Exception as e:
                 print(f"[ERROR] Vote failed for Player {p.player_id}: {e}")
-                # fallback
-                return -1  # -1 means vote failed
+                return -1  
         
         with ThreadPoolExecutor(max_workers=2) as executor:
             future_to_player = {
@@ -183,19 +153,6 @@ def run_one_game(all_players,game_id,save_dir,enable_cheatsheet=False,embed_mode
                 vote_target = future.result()
                 votes[player.player_id] = vote_target
 
-        # with ThreadPoolExecutor(max_workers=len(alive_players)) as executor:
-        #     future_to_player = {
-        #         executor.submit(p.ask, phase="vote", round_num=round_num, alive_players_id=alive_pid): p
-        #         for p in alive_players
-        #     }
-
-        #     for future, player in future_to_player.items():
-        #         vote_target = future.result()
-        #         votes[player.player_id] = vote_target
-
-        # ---------------------------------------
-        # 5. COUNT VOTES
-        # ---------------------------------------
         vote_count = {}
         for src_pid, tgt_pid in votes.items():
             vote_count[tgt_pid] = vote_count.get(tgt_pid, 0) + 1
@@ -203,9 +160,6 @@ def run_one_game(all_players,game_id,save_dir,enable_cheatsheet=False,embed_mode
         max_votes = max(vote_count.values())
         candidates = [pid for pid, cnt in vote_count.items() if cnt == max_votes]
 
-        # ---------------------------------------
-        # 6. BROADCAST SUMMARY
-        # ---------------------------------------
         vote_summary = ", ".join([f"Player {src} votes for Player {tgt}" for src, tgt in votes.items()])
         broadcast(
             msg={"round_num": round_num, "role": "host", "phase": "vote_reveal", "content": "The vote result is:\n" + vote_summary},
@@ -213,20 +167,15 @@ def run_one_game(all_players,game_id,save_dir,enable_cheatsheet=False,embed_mode
             game_log=game_log,
         )
 
-        # ---------------------------------------
-        # 7. ELIMINATION LOGIC
-        # ---------------------------------------
+
         if len(candidates) == 1:
             eliminated = candidates[0]
-            # -------- Game termination condition --------
             if all_players[eliminated].role == "spy":
                 print(f"Spy {eliminated} eliminated! Civilians win!")
                 game_info["winner"] = "civilians" 
                 break
     
-            # Update alive player list
             alive_players = [p for p in alive_players if p.player_id != eliminated]
-            # Update alive player identity info
             for p in alive_players:
                 p.identity_info[eliminated] = {"role":"eliminated","reason":"This civilianhas been eliminated. I don't need to consider this player's identity anymore."}
 
@@ -242,7 +191,6 @@ def run_one_game(all_players,game_id,save_dir,enable_cheatsheet=False,embed_mode
             )
 
         else:
-            # Tie: no elimination
             broadcast(
                 msg={
                     "round_num": round_num,
@@ -257,7 +205,6 @@ def run_one_game(all_players,game_id,save_dir,enable_cheatsheet=False,embed_mode
                 game_log=game_log,
             )
 
-        # -------- Another termination condition --------
         round_num += 1
 
     print("\n===== GAME OVER =====")
@@ -281,11 +228,9 @@ def run_one_game(all_players,game_id,save_dir,enable_cheatsheet=False,embed_mode
 
         print("[Cheatsheet Updated: Retrieval + Synthesis Mode]")
     
-    # Save game log file
     with open(f"{save_dir}/game_log_{game_id}.json", "w", encoding="utf-8") as f:
         json.dump({"metadata": game_info, "public_log": game_log}, f, ensure_ascii=False, indent=2)
 
-    # Append each agent log
     for p in all_players:
         append_jsonl(
             f"{save_dir}/player_log_{p.player_id}.jsonl",
@@ -296,9 +241,6 @@ def run_one_game(all_players,game_id,save_dir,enable_cheatsheet=False,embed_mode
             }
         )
 
-# =======================
-# RUN MANY GAMES
-# =======================
 
 def load_test_data(data_path):
     with open(data_path, "r", encoding="utf-8") as f:
@@ -312,7 +254,7 @@ def main(cfg_path=None):
             "exp_name": "exp4",
             "model": "Qwen/Qwen2.5-32B-Instruct",
             "base_url": "https://api.siliconflow.cn/v1",
-            "api_key": "sk-amcjzxomyzuispivnvvtgszrnxijmxpkmewbvlviffgborlg",
+            "api_key": "your api key",
             "temperature": 0.7,
             "n_games": 50,
             "n_players": 5,
@@ -348,7 +290,7 @@ def main(cfg_path=None):
     )
     
     embed_model = SiliconFlowEmbeddings(
-    api_key=cfg["api_key"],          # 或者单独的 embedding key
+    api_key=cfg["api_key"],       
     base_url=cfg["base_url"],
     model="BAAI/bge-m3"
     )
@@ -358,7 +300,7 @@ def main(cfg_path=None):
         spy_list = list(range(N_PLAYERS))
         spy_list = spy_list[:N_GAMES]
     else:
-        repeats = (N_GAMES + N_PLAYERS - 1) // N_PLAYERS  # ceil division
+        repeats = (N_GAMES + N_PLAYERS - 1) // N_PLAYERS  
         spy_list = (list(range(N_PLAYERS)) * repeats)[:N_GAMES]
     
     random.shuffle(spy_list)

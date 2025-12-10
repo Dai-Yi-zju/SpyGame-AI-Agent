@@ -24,7 +24,7 @@ class SiliconFlowEmbeddings:
         }
 
         payload = {
-            "model": self.model,     # 推荐 bge-m3 或 bge-large-zh-v1.5
+            "model": self.model,    
             "input": texts
         }
 

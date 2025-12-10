@@ -22,12 +22,9 @@ class PlayerAgent:
         self.memory=[]
         self.identity_info = [{"role": "unknown", "reason": "default value"}for _ in range(5)]
         self.enable_cheatsheet = enable_cheatsheet
-        # Whether enable_cheatsheet = True or False,
-        # always record these two fields for run_one_game() to use.
-        self.model_api_key = "sk-amcjzxomyzuispivnvvtgszrnxijmxpkmewbvlviffgborlg"
+        self.model_api_key = "your api key"
         self.model_base_url = "https://api.siliconflow.cn/v1"
 
-        # base_url fallback - this MUST not be None
         if self.model_base_url is None:
             self.model_base_url = "https://api.siliconflow.cn/v1"
 
@@ -65,7 +62,6 @@ class PlayerAgent:
             if "self_analysis" not in response or "player_analyses" not in response:
                 raise ValueError("response must include self_analysis at top level")
 
-            #update other players' identities
             for key,value in response["player_analyses"].items():
                 if int(key)!=self.player_id and int(key) in alive_players_id:
                     role_guess=value["role_guess"]
@@ -75,7 +71,6 @@ class PlayerAgent:
                     self.identity_info[int(key)]={"role":role_guess,"word_guess":word_guess,"reason":reason}
                     self.add_log_info({"round_num":round_num,"role":self.player_id,"phase":"other_identity_guess","guess_player":key,"guess_role":role_guess,"guess_word":word_guess,"guess_reason":reason})
 
-            #update self's identity
             sa = response["self_analysis"]
             role_guess = sa["role_guess"]
             reason = sa.get("role_reason", sa.get("reason", ""))
@@ -155,7 +150,6 @@ class PlayerAgent:
     
     def get_reflection_prompt(self,round_num,alive_players_id,outlier_score):
         past_info_msg=self.create_past_info_msg()
-        # create identity_info_msg
         identity_info_msg=self.create_identity_info_msg()
         alive_players_msg=",".join([f"Player {player_id}" for player_id in alive_players_id])
         if outlier_score is None:
@@ -208,7 +202,6 @@ class PlayerAgent:
         response = response['messages'][-1]
         # response = self.model.invoke(prompt)
         
-        # print("=================response==================")
         print(response.content)
         return response.content
     
